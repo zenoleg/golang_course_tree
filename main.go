@@ -32,11 +32,17 @@ func dirTree(writer io.Writer, path string, printFiles bool) error {
 
 	files = sortFiles(files)
 
-	for _, file := range files {
-		//fmt.Println(file.Name())
+	for iterator, file := range files {
 
-		if !file.IsDir() {
-			fmt.Printf("├───%s (%s)", file.Name(), processSize(file.Size()))
+		if !file.IsDir() && printFiles {
+			_, _ = fmt.Fprintf(writer, "├───%s (%s)\n", file.Name(), processSize(file.Size()))
+		} else if file.IsDir() {
+			if iterator != len(files)-1 {
+				_, _ = fmt.Fprintf(writer, "├───%s\n│\t", file.Name())
+			} else {
+				_, _ = fmt.Fprintf(writer, "└───%s\n", file.Name())
+			}
+			_ = dirTree(writer, path+"/"+file.Name(), printFiles)
 		}
 	}
 
