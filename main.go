@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 func main() {
@@ -22,31 +23,91 @@ func main() {
 }
 
 func dirTree(writer io.Writer, path string, printFiles bool) error {
-	rootFile, err := os.Open(path)
+	return myDirTree(writer, path, printFiles, false)
+}
 
+func myDirTree(writer io.Writer, path string, printFiles bool, isPrevLast bool) error {
+	files, err := readOnlyDirectories(path)
 	if err != nil {
 		return err
 	}
 
-	files, _ := rootFile.Readdir(-1)
+	dirDepth := strings.Count(path, "/")
 
-	files = sortFiles(files)
+	var separator string
+
+	if isPrevLast {
+		separator = "\t"
+	} else {
+		separator = "│\t"
+	}
 
 	for iterator, file := range files {
 
-		if !file.IsDir() && printFiles {
-			_, _ = fmt.Fprintf(writer, "├───%s (%s)\n", file.Name(), processSize(file.Size()))
-		} else if file.IsDir() {
-			if iterator != len(files)-1 {
-				_, _ = fmt.Fprintf(writer, "├───%s\n│\t", file.Name())
-			} else {
-				_, _ = fmt.Fprintf(writer, "└───%s\n", file.Name())
+		if file.Name() == ".git" || file.Name() == ".idea" {
+			continue
+		}
+
+		if file.IsDir() {
+			if dirDepth >= 1 {
+				_, _ = fmt.Fprintf(writer, strings.Repeat(separator, dirDepth))
 			}
-			_ = dirTree(writer, path+"/"+file.Name(), printFiles)
+
+			if iterator == len(files)-1 {
+				_, _ = fmt.Fprintf(writer, "└───%s\n", file.Name())
+			} else {
+				_, _ = fmt.Fprintf(writer, "├───%s\n", file.Name())
+			}
+
+			newPath := path + "/" + file.Name()
+			if dirCount, _ := dirCount(newPath); dirCount > 0 {
+				_ = myDirTree(writer, newPath, printFiles, iterator == len(files)-1)
+			}
 		}
 	}
 
 	return nil
+}
+
+func readOnlyDirectories(path string) ([]os.FileInfo, error) {
+	rootFile, err := os.Open(path)
+
+	if err != nil {
+		return nil, err
+	}
+
+	files, _ := rootFile.Readdir(-1)
+	files = sortFiles(files)
+
+	var dirFiles []os.FileInfo
+
+	for _, file := range files {
+		if file.IsDir() {
+			dirFiles = append(dirFiles, file)
+		}
+	}
+
+	return dirFiles, nil
+}
+
+func dirCount(path string) (int, error) {
+	counter := 0
+
+	rootFile, err := os.Open(path)
+
+	if err != nil {
+		return 0, err
+	}
+
+	files, _ := rootFile.Readdir(-1)
+
+	for _, file := range files {
+		if file.IsDir() {
+			counter++
+		}
+	}
+
+	return counter, nil
 }
 
 func processSize(size int64) string {

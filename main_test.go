@@ -48,8 +48,7 @@ func TestTreeFull(t *testing.T) {
 	}
 }
 
-const testDirResult = `
-├───project
+const testDirResult = `├───project
 ├───static
 │	├───a_lorem
 │	│	└───ipsum
