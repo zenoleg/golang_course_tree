@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 )
 
 func main() {
@@ -32,10 +33,22 @@ func dirTree(writer io.Writer, path string, printFiles bool) error {
 	files = sortFiles(files)
 
 	for _, file := range files {
-		fmt.Println(file.Name())
+		//fmt.Println(file.Name())
+
+		if !file.IsDir() {
+			fmt.Printf("├───%s (%s)", file.Name(), processSize(file.Size()))
+		}
 	}
 
 	return nil
+}
+
+func processSize(size int64) string {
+	if size == 0 {
+		return "empty"
+	}
+
+	return strconv.FormatInt(size, 10) + "b"
 }
 
 func sortFiles(files []os.FileInfo) []os.FileInfo {
