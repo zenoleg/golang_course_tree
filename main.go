@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"strings"
+	"sort"
 )
 
 func main() {
@@ -19,4 +18,30 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+}
+
+func dirTree(writer io.Writer, path string, printFiles bool) error {
+	rootFile, err := os.Open(path)
+
+	if err != nil {
+		return err
+	}
+
+	files, _ := rootFile.Readdir(-1)
+
+	files = sortFiles(files)
+
+	for _, file := range files {
+		fmt.Println(file.Name())
+	}
+
+	return nil
+}
+
+func sortFiles(files []os.FileInfo) []os.FileInfo {
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Name() < files[j].Name()
+	})
+
+	return files
 }
