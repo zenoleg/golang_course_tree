@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+const (
+	StickSeparator  = "│\t"
+	CommonSeparator = "\t"
+)
+
 func main() {
 	out := os.Stdout
 	if !(len(os.Args) == 2 || len(os.Args) == 3) {
@@ -23,53 +28,75 @@ func main() {
 }
 
 func dirTree(writer io.Writer, path string, printFiles bool) error {
-	return myDirTree(writer, path, printFiles, false)
+	return tree(writer, path, printFiles, "")
 }
 
-func myDirTree(writer io.Writer, path string, printFiles bool, isPrevLast bool) error {
-	files, err := readOnlyDirectories(path)
+func tree(writer io.Writer, path string, printFiles bool, lastStr string) error {
+	files, err := readFiles(path, printFiles)
+
 	if err != nil {
 		return err
 	}
 
 	dirDepth := strings.Count(path, "/")
 
-	var separator string
+	var firstSeparator, lastString string
 
-	if isPrevLast {
-		separator = "\t"
-	} else {
-		separator = "│\t"
+	stickCount := calculateStickCount(lastStr)
+
+	if stickCount > 0 {
+		firstSeparator = StickSeparator
 	}
 
 	for iterator, file := range files {
+		lastString = ""
 
-		if file.Name() == ".git" || file.Name() == ".idea" {
-			continue
+		if dirDepth >= 1 {
+			prefix := strings.Repeat(firstSeparator, stickCount) + strings.Repeat(CommonSeparator, dirDepth-stickCount)
+
+			_, _ = fmt.Fprintf(writer, prefix)
+			lastString += prefix
 		}
 
+		var branch string
+
 		if file.IsDir() {
-			if dirDepth >= 1 {
-				_, _ = fmt.Fprintf(writer, strings.Repeat(separator, dirDepth))
+			if iterator == len(files)-1 {
+				branch = fmt.Sprintf("└───%s\n", file.Name())
+			} else {
+				branch = fmt.Sprintf("├───%s\n", file.Name())
 			}
 
-			if iterator == len(files)-1 {
-				_, _ = fmt.Fprintf(writer, "└───%s\n", file.Name())
-			} else {
-				_, _ = fmt.Fprintf(writer, "├───%s\n", file.Name())
-			}
+			_, _ = fmt.Fprintf(writer, branch)
+			lastString += branch
 
 			newPath := path + "/" + file.Name()
-			if dirCount, _ := dirCount(newPath); dirCount > 0 {
-				_ = myDirTree(writer, newPath, printFiles, iterator == len(files)-1)
+			if dirCount, _ := fileCount(newPath); dirCount > 0 {
+				_ = tree(writer, newPath, printFiles, lastString)
 			}
+		} else {
+			if iterator == len(files)-1 {
+				branch = fmt.Sprintf("└───%s (%s)\n", file.Name(), processSize(file.Size()))
+			} else {
+				branch = fmt.Sprintf("├───%s (%s)\n", file.Name(), processSize(file.Size()))
+			}
+
+			_, _ = fmt.Fprintf(writer, branch)
+			lastString += branch
 		}
 	}
 
 	return nil
 }
 
-func readOnlyDirectories(path string) ([]os.FileInfo, error) {
+func calculateStickCount(lastStr string) int {
+	stickCount := strings.Count(lastStr, "│")
+	arrowCount := strings.Count(lastStr, "├───")
+
+	return stickCount + arrowCount
+}
+
+func readFiles(path string, printFiles bool) ([]os.FileInfo, error) {
 	rootFile, err := os.Open(path)
 
 	if err != nil {
@@ -79,20 +106,20 @@ func readOnlyDirectories(path string) ([]os.FileInfo, error) {
 	files, _ := rootFile.Readdir(-1)
 	files = sortFiles(files)
 
-	var dirFiles []os.FileInfo
+	var fileList []os.FileInfo
 
 	for _, file := range files {
 		if file.IsDir() {
-			dirFiles = append(dirFiles, file)
+			fileList = append(fileList, file)
+		} else if printFiles {
+			fileList = append(fileList, file)
 		}
 	}
 
-	return dirFiles, nil
+	return fileList, nil
 }
 
-func dirCount(path string) (int, error) {
-	counter := 0
-
+func fileCount(path string) (int, error) {
 	rootFile, err := os.Open(path)
 
 	if err != nil {
@@ -101,13 +128,7 @@ func dirCount(path string) (int, error) {
 
 	files, _ := rootFile.Readdir(-1)
 
-	for _, file := range files {
-		if file.IsDir() {
-			counter++
-		}
-	}
-
-	return counter, nil
+	return len(files), nil
 }
 
 func processSize(size int64) string {
