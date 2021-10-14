@@ -82,6 +82,14 @@ func dirTree(out io.Writer, path string, printFiles bool) error {
 
 		if file.IsDir() {
 			fmt.Fprint(out, formatFile(file, prefix))
+
+			fullPath := path + "/" + file.Name()
+
+			err := dirTree(out, fullPath, printFiles)
+
+			if err != nil {
+				return err
+			}
 		} else {
 			fmt.Fprint(out, formatFile(file, prefix))
 		}
@@ -131,8 +139,8 @@ func formatFile(file os.FileInfo, prefix string) string {
 	if file.Size() == 0 {
 		size = "empty"
 	} else {
-		size = strconv.FormatInt(file.Size(), 10)
+		size = strconv.FormatInt(file.Size(), 10) + "b"
 	}
 
-	return fmt.Sprintf("%s%s (%sb)\n", prefix, file.Name(), size)
+	return fmt.Sprintf("%s%s (%s)\n", prefix, file.Name(), size)
 }
