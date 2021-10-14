@@ -8,38 +8,6 @@ import (
 	"strconv"
 )
 
-/**
-├───project
-│	├───file.txt (19b)
-│	└───gopher.png (70372b)
-├───static
-│	├───a_lorem
-│	│	├───dolor.txt (empty)
-│	│	├───gopher.png (70372b)
-│	│	└───ipsum
-│	│		└───gopher.png (70372b)
-│	├───css
-│	│	└───body.css (28b)
-│	├───empty.txt (empty)
-│	├───html
-│	│	└───index.html (57b)
-│	├───js
-│	│	└───site.js (10b)
-│	└───z_lorem
-│		├───dolor.txt (empty)
-│		├───gopher.png (70372b)
-│		└───ipsum
-│			└───gopher.png (70372b)
-├───zline
-│	├───empty.txt (empty)
-│	└───lorem
-│		├───dolor.txt (empty)
-│		├───gopher.png (70372b)
-│		└───ipsum
-│			└───gopher.png (70372b)
-└───zzfile.txt (empty)
-*/
-
 const (
 	ARROW = "├───"
 	WALL  = "│"
@@ -60,6 +28,11 @@ func main() {
 }
 
 func dirTree(out io.Writer, path string, printFiles bool) error {
+	dirLastInfo := make(map[int]bool, 0)
+	return tree(out, path, printFiles, 0, dirLastInfo)
+}
+
+func tree(out io.Writer, path string, printFiles bool, depth int, dirLastInfo map[int]bool) error {
 	files, err := readFiles(path, printFiles)
 
 	if err != nil {
@@ -72,20 +45,35 @@ func dirTree(out io.Writer, path string, printFiles bool) error {
 
 	filesCount := len(files) - 1
 	var prefix string
+	var walls string
 
 	for position, file := range files {
 		if position == filesCount {
 			prefix = TAIL
+			dirLastInfo[depth] = true
 		} else {
 			prefix = ARROW
+			dirLastInfo[depth] = false
+		}
+
+		if depth > 0 {
+			for i := 0; i < depth; i++ {
+				if dirLastInfo[i] {
+					fmt.Fprint(out, "\t")
+				} else {
+					fmt.Fprint(out, WALL+"\t")
+				}
+			}
+
+			fmt.Fprint(out, walls)
 		}
 
 		if file.IsDir() {
-			fmt.Fprint(out, formatFile(file, prefix))
+			fmt.Fprint(out, formatDir(file, prefix))
 
 			fullPath := path + "/" + file.Name()
 
-			err := dirTree(out, fullPath, printFiles)
+			err := tree(out, fullPath, printFiles, depth+1, dirLastInfo)
 
 			if err != nil {
 				return err
@@ -143,4 +131,8 @@ func formatFile(file os.FileInfo, prefix string) string {
 	}
 
 	return fmt.Sprintf("%s%s (%s)\n", prefix, file.Name(), size)
+}
+
+func formatDir(file os.FileInfo, prefix string) string {
+	return fmt.Sprintf("%s%s\n", prefix, file.Name())
 }
