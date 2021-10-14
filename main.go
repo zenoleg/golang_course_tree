@@ -134,5 +134,5 @@ func formatFile(file os.FileInfo, prefix string) string {
 		size = strconv.FormatInt(file.Size(), 10)
 	}
 
-	return fmt.Sprintf("%s%s (%db)\n", prefix, file.Name(), size)
+	return fmt.Sprintf("%s%s (%sb)\n", prefix, file.Name(), size)
 }
